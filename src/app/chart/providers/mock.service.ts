@@ -1,9 +1,12 @@
-import { Injectable } from '@angular/core';
-import { Observable, Observer, interval, Subscription } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { BTC_PRICE_LIST } from '../mock/btc-181123_2006-181124_0105';
+import {Injectable, OnInit} from '@angular/core';
+import {Observable, Observer, interval, Subscription} from 'rxjs';
+import {map, takeUntil, timestamp} from 'rxjs/operators';
+// import { BTC_PRICE_LIST } from '../mock/btc-181123_2006-181124_0105';
+import {CrudService} from '../../service/crud.service';
+import {CollectStatsDto, CryptoRealPrice, CryptoStatisticsDto, UserDailyStats} from '../../dashboard/dashboard.component';
+import {RxStompService} from '@stomp/ng2-stompjs';
 
-interface BarData {
+export interface BarData {
   time: number;
   open: number;
   high: number;
@@ -16,34 +19,53 @@ interface BarData {
   providedIn: 'root'
 })
 export class MockService {
-  static dataTemplate: BarData = { 'time': 1545572340000, 'open': 3917, 'high': 3917, 'low': 3912.03, 'close': 3912.62, 'volume': 3896 };
-  static dataIndex = 0;
-  static dataLength = BTC_PRICE_LIST.length;
-
+  dataTemplate: BarData = {'time': 1545572340000, 'open': 3917, 'high': 3917, 'low': 3912.03, 'close': 3912.62, 'volume': 3896};
+  dataIndex = 0;
+  dataLength = 0;
+  BTC_PRICE_LIST = [];
   lastBarTimestamp: number;
+  lastIndex = 0;
+  generated = false;
+  lastGranulity = 0;
 
-  static dataGenerator(time = +new Date()): BarData {
+  dataGenerator(time = +new Date()): BarData {
     const obj: any = {};
-    Object.assign(obj, BTC_PRICE_LIST[this.dataIndex], { time });
-    // tslint:disable-next-line:no-unused-expression
+
+    Object.assign(obj, this.BTC_PRICE_LIST[this.dataIndex], {time});
     ++this.dataIndex >= this.dataLength && (this.dataIndex = 0);
     return obj;
   }
 
-  constructor() {
+  generateHistoryData(): BarData[] {
+    return this.BTC_PRICE_LIST;
   }
 
-  getHistoryList(param: { granularity: any; startTime: any; endTime?: any; }): Observable<BarData[]> {
-    const list: any[] | never[] | BarData[] = [];
-    let timePoint = +new Date(param.startTime * 1e3).setSeconds(0, 0);
-    const now = +new Date();
-    while (timePoint < now) {
-      this.lastBarTimestamp = timePoint;
-      // @ts-ignore
-      list.push(MockService.dataGenerator(timePoint));
-      timePoint += param.granularity * 1e3;
+  constructor(private service: CrudService, private rxStompService: RxStompService) {
+    this.service.getChartData(sessionStorage.getItem('botId')).subscribe(data => {
+      this.dataLength = data.length;
+      console.log('chart data', data);
+      this.BTC_PRICE_LIST = data;
+    });
+  }
+
+
+  getHistoryList(param, init: boolean): Observable<BarData[]> {
+    let list = [];
+
+    if (this.lastGranulity === 0) {
+      this.lastGranulity = param.granularity;
     }
 
+    console.log('get history');
+
+
+    if (init || !this.generated || this.lastGranulity !== param.granularity) {
+      this.lastGranulity = param.granularity;
+      list = this.generateHistoryData();
+      console.log(list);
+      this.lastBarTimestamp = list[list.length - 1].time;
+      this.generated = true;
+    }
     return new Observable((ob: Observer<any>) => {
       ob.next(list);
       ob.complete();
@@ -71,23 +93,32 @@ export class MockService {
     };
 
     const sendData = () => {
-      const duration = 3e3;
-      subscription = interval(duration)
-        .pipe(
-          map(() => {
-            const currentTimestamp = +new Date();
-            if (currentTimestamp - this.lastBarTimestamp >= granularity) {
-              this.lastBarTimestamp += granularity;
-            }
-            return MockService.dataGenerator(this.lastBarTimestamp);
-          })
-        )
+      subscription = this.rxStompService.watch('/topic/statistics/' + sessionStorage.getItem('botId'))
+        .pipe(map((a) => {
+          const currentTimestamp = +new Date();
+
+          if (currentTimestamp - this.lastBarTimestamp >= granularity) {
+            this.lastBarTimestamp += granularity;
+          }
+          const message: CryptoStatisticsDto = JSON.parse(a.body);
+          const collectStats: CollectStatsDto = message.userStatistics;
+          const o: CryptoRealPrice = collectStats.userStatistics;
+          const cryptoBarMap = new Map<string, BarData>();
+          const bar: BarData = {
+            time: this.lastBarTimestamp,
+            volume: null,
+            high: o.high,
+            low: o.low,
+            open: o.open,
+            close: o.close
+          };
+          return cryptoBarMap.set(o.currentCrypto, bar);
+        }))
         .subscribe(x => {
           ws.onmessage && ws.onmessage(x);
         });
     };
 
-    // simulate open websocket after one second
     setTimeout(() => {
       ws.onopen();
     }, 1e3);

@@ -27,29 +27,28 @@ import {myRxStompConfig} from './rx-stomp.config';
 import {TradingDecisionsComponent} from './app/trading-decisions/trading-decisions.component';
 // import {MatListModule, MatSelectModule} from '@angular/material/autocomplete';
 import {MailVerificationComponent} from './app/mail-verification/mail-verification.component';
-import {ChartComponent} from './app/chart/chart.component';
-import {TvComponent} from './app/chart/tv/tv.component';
 import {MatSelectModule} from '@angular/material/select';
 import {MatListModule} from '@angular/material/list';
 import {MatTableModule} from '@angular/material/table';
 import {MatSortModule} from '@angular/material/sort';
+import {TvComponent} from './app/chart/tv/tv.component';
 
 @NgModule({
-    imports: [
-        BrowserModule,
-        BrowserAnimationsModule,
-        FormsModule,
-        HttpClientModule,
-        DemoMaterialModule,
-        MatNativeDateModule,
-        ReactiveFormsModule,
-        RouterModule,
-        AppRoutingModule,
-         MatSelectModule,
-         MatListModule,
-      MatTableModule,
-      MatSortModule
-    ],
+  imports: [
+    BrowserModule,
+    BrowserAnimationsModule,
+    FormsModule,
+    HttpClientModule,
+    DemoMaterialModule,
+    MatNativeDateModule,
+    ReactiveFormsModule,
+    RouterModule,
+    AppRoutingModule,
+    MatSelectModule,
+    MatListModule,
+    MatTableModule,
+    MatSortModule,
+  ],
     declarations: [AppComponent,
         SidenavComponent,
         ToolbarComponent,

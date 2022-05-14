@@ -45,7 +45,7 @@ export class UserdataComponent implements OnInit {
   }
 
   userData: UserData;
-  isUserHavingKeys: boolean;
+  isUserHavingKeys: boolean = undefined;
   toggleSpinner = false;
   err: string;
   tradePair = 'USDT';

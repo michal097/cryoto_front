@@ -7,16 +7,9 @@ import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {HTTP_INTERCEPTORS, HttpClientModule} from '@angular/common/http';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {AppRoutingModule} from './app-routing/app-routing.module';
-import {DashboardComponent} from './dashboard/dashboard.component';
-import {UserdataComponent} from './userdata/userdata.component';
-import {FooterComponent} from './footer/footer.component';
 import {BasicAuthHtppInterceptorService} from './service/basic-auth-interceptor.service';
 import {InjectableRxStompConfig, RxStompService, rxStompServiceFactory} from '@stomp/ng2-stompjs';
 import {myRxStompConfig} from '../rx-stomp.config';
-import { TradingDecisionsComponent } from './trading-decisions/trading-decisions.component';
-import { MailVerificationComponent } from './mail-verification/mail-verification.component';
-import { ChartComponent } from './chart/chart.component';
-import {TvComponent} from './chart/tv/tv.component';
 import {MatDatepickerModule} from '@angular/material/datepicker';
 import {MatNativeDateModule} from '@angular/material/core';
 import {MatTabsModule} from '@angular/material/tabs';
@@ -33,11 +26,12 @@ import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 import { SummaryComponent } from './summary/summary.component';
 import {MatTableModule} from '@angular/material/table';
 import {MatSortModule} from '@angular/material/sort';
+import { ChartComponent } from './chart/chart.component';
 
 
 @NgModule({
-    // declarations: [LoginComponent, DashboardComponent, UserdataComponent, FooterComponent,
-    //   TradingDecisionsComponent, MailVerificationComponent, ChartComponent, TvComponent],
+  // declarations: [LoginComponent, DashboardComponent, UserdataComponent, FooterComponent,
+  //   TradingDecisionsComponent, MailVerificationComponent, ChartComponent, TvComponent],
   imports: [
     CommonModule,
     BrowserModule,
@@ -78,8 +72,11 @@ import {MatSortModule} from '@angular/material/sort';
       useFactory: rxStompServiceFactory,
       deps: [InjectableRxStompConfig]
     }],
+  exports: [
+  ],
   declarations: [
-    SummaryComponent
+    SummaryComponent,
+    ChartComponent
   ]
 })
 export class AppModule {

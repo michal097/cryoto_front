@@ -1,3 +1,7 @@
+<div *ngIf="isUserHavingKeys === undefined">
+  <mat-spinner class="ceneter"></mat-spinner>
+</div>
+<div *ngIf="isUserHavingKeys !== undefined">
 <mat-card class="info" *ngIf="!isUserHavingKeys"> Enter new data and save</mat-card>
 <mat-card class="info" *ngIf="isUserHavingKeys"> Update already existing data</mat-card>
 <mat-card *ngIf="isUserHavingKeys" class="user_data_container">
@@ -155,3 +159,4 @@
 </mat-stepper>
 
 <mat-card *ngIf="err" class="err ">{{err}}</mat-card>
+</div>

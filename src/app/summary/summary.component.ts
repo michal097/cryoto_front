@@ -4,6 +4,7 @@ import {MatTableDataSource} from '@angular/material/table';
 import {MatPaginator} from '@angular/material/paginator';
 import {MatSort, Sort} from '@angular/material/sort';
 import {LiveAnnouncer} from '@angular/cdk/a11y';
+import {map} from 'rxjs/operators';
 
 @Component({
   selector: 'app-summary',
@@ -34,20 +35,21 @@ export class SummaryComponent implements OnInit {
 
   ngOnInit(): void {
     this.botId = sessionStorage.getItem('botId');
-    this.service.getCryptoSummary(this.botId).subscribe((data: UserCryptoData []) => {
-      this.userCryptoData = data;
-      this.hasAnyCrypto = data.length > 0;
-      const sumMoney = data.map(d => d.money)
-        .reduce((sum, current) => sum + current, 0);
-      this.allMoney = SummaryComponent.round(sumMoney, 2);
-      this.dataSource = new MatTableDataSource<UserCryptoData>(data);
-      setTimeout(() => {
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
-      });
-      this.loader = false;
-
-    });
+    this.service.getCryptoSummary(this.botId)
+      .pipe(map((data: UserCryptoData []) => {
+        this.userCryptoData = data;
+        this.hasAnyCrypto = data.length > 0;
+        const sumMoney = data.map(d => d.money)
+          .reduce((sum, current) => sum + current, 0);
+        this.allMoney = SummaryComponent.round(sumMoney, 2);
+        this.dataSource = new MatTableDataSource<UserCryptoData>(data);
+        setTimeout(() => {
+          this.dataSource.paginator = this.paginator;
+          this.dataSource.sort = this.sort;
+        });
+        this.loader = false;
+      }))
+      .subscribe();
 
   }
 

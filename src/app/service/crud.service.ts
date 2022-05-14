@@ -10,7 +10,7 @@ import {FilterProperties} from '../trading-decisions/FilterProperties';
 })
 export class CrudService {
 
-  URL = 'http://localhost:9090/';
+  URL = 'https://auto-crypto-trader.herokuapp.com/';
 
   constructor(private http: HttpClient) {
   }
@@ -31,12 +31,12 @@ export class CrudService {
     return this.http.put(this.URL + `updateUserBotInstance/${botInstanceId}`, user);
   }
 
-  startTrader(user: UserData): Observable<any> {
-    return this.http.post(this.URL + 'startTrader', user);
+  startTrader(botId: string): Observable<any> {
+    return this.http.post(this.URL + `startTrader/${botId}`, null);
   }
 
-  stopTrader(user: UserData): Observable<any> {
-    return this.http.post(this.URL + 'stopTrader', user);
+  stopTrader(botId: string): Observable<any> {
+    return this.http.post(this.URL + `stopTrader/${botId}`, null);
   }
 
   getTradingDecisions(username: string | null, page: number, size: number, filters: FilterProperties): Observable<any> {
@@ -66,4 +66,9 @@ export class CrudService {
   getChartData(botId: string): Observable<any> {
     return this.http.get(this.URL + `getChartData/${botId}`);
   }
+
+  alreadySellCryptoStats(botId: string): Observable<any> {
+    return this.http.get(this.URL + `alreadySellCryptoStats/${botId}`);
+  }
+
 }

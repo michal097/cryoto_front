@@ -22,24 +22,23 @@
 </button>
 
 <button mat-raised-button color="warn"
-        *ngIf="userHavingKeys && traderStart && startWebSocket" (click)="stopTraderWS()"
+        *ngIf="userHavingKeys && traderStart" (click)="stopTraderWS()"
         class="button_start_stop"
         [disabled]="loader">Stop trader
 </button>
 
 <mat-spinner class="center_spinner_bot" diameter="150"
-             value="40" *ngIf="!startWebSocket && userHavingKeys && traderStart"></mat-spinner>
+             value="40" *ngIf="userHavingKeys && traderStart && !currentCryptosAsString"></mat-spinner>
 
-<mat-card *ngIf="userHavingKeys && traderStart && currentCryptosAsString && startWebSocket" style="background: #191B1C">
+<mat-card *ngIf="userHavingKeys && traderStart && currentCryptosAsString" style="background: #191B1C">
   <div id="parent">
     <mat-card class="stats">
       <p *ngFor="let stat of statistics">
         <a style="color: #68abff; font-weight: bold">{{stat.currentCrypto}}: &nbsp;</a>
         <a
           [ngClass]="{'stonks': checkStonks(stat), 'not_stonks': !checkStonks(stat), 'none': checkStonks(stat) === null}">{{stat.price}}</a>
-        <a *ngIf="stat.hasPrice" style="color: #68abff; font-weight: bold">&nbsp;/</a>
-        <a *ngIf="stat.hasPrice"
-           [ngClass]="{'stonks': stat.percentage >= 0, 'not_stonks': stat.percentage < 0}">&nbsp;{{stat.percentage}} %</a>
+        <a  style="color: #68abff; font-weight: bold">&nbsp;/</a>
+        <a [ngClass]="{'stonks': stat.percentage >= 0, 'not_stonks': stat.percentage < 0}">&nbsp;{{stat.percentage}} %</a>
       </p>
     </mat-card>
 
@@ -49,7 +48,7 @@
     </mat-card>
 
   </div>
-  <app-tv style="height: 10px" [symbol]="currentCryptosAsString"></app-tv>
+  <app-tv style="height: 10px" [symbol]="currentCryptosAsString" [bars]="cryptoBars"></app-tv>
 </mat-card>
 
 

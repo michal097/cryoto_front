@@ -1,5 +1,5 @@
 import {Component, Input, OnDestroy, OnInit} from '@angular/core';
-import {MockService} from '../providers/mock.service';
+import {BarData, MockService} from '../providers/mock.service';
 import {timer} from 'rxjs';
 import {tap} from 'rxjs/operators';
 
@@ -9,16 +9,17 @@ import {tap} from 'rxjs/operators';
   styleUrls: ['./tv.component.scss']
 })
 export class TvComponent implements OnInit, OnDestroy {
-  @Input()
-  symbol: any;
+  @Input() symbol;
+  @Input() bars;
+  tradingview;
+  init = false;
 
-  tradingview: any;
-
-  ws: { onopen: () => void; close: () => void; onmessage: (e: any) => void; send: { (arg0: string): void; (arg0: string): void; }; };
+  ws;
   wsMessage = 'you may need to send specific message to subscribe data, eg: BTC';
 
   granularityMap = {
-
+    '1': 60,
+    '3': 180,
     '5': 300,
     '30': 30 * 60,
     '60': 60 * 60,
@@ -33,8 +34,11 @@ export class TvComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.ws = this.mockService.fakeWebSocket();
-
+    console.log('on init');
+    this.init = true;
+    this.drawTv();
     this.ws.onopen = () => {
+      console.log('connect success');
       this.drawTv();
     };
   }
@@ -61,15 +65,15 @@ export class TvComponent implements OnInit, OnDestroy {
         // 'use_localstorage_for_settings',
         // 'volume_force_overlay',
         // 'show_interval_dialog_on_key_press',
-        // 'symbol_search_hot_key',
+        'symbol_search_hot_key',
         'study_dialog_search_control',
-        // 'display_market_status',
-        'header_compare',
+        'display_market_status',
+        /*'header_compare',
         'header_symbol_search',
-        // 'header_fullscreen_button',
-        // 'header_settings',
-        // 'header_chart_type',
-        // 'header_resolutions',
+        'header_fullscreen_button',
+        'header_settings',
+        'header_chart_type',
+        'header_resolutions',*/
         'control_bar',
         'edit_buttons_in_legend',
         'border_around_the_chart',
@@ -78,7 +82,7 @@ export class TvComponent implements OnInit, OnDestroy {
         'datasource_copypaste',
         'header_indicators',
         // 'context_menus',
-        'compare_symbol',
+        // 'compare_symbol',
         'header_undo_redo',
         'border_around_the_chart',
         'timezone_menu',
@@ -90,36 +94,39 @@ export class TvComponent implements OnInit, OnDestroy {
       charts_storage_api_version: '1.1',
       client_id: 'tradingview.com',
       user_id: 'public_user_id',
-      timezone: 'America/New_York',
+      timezone: 'Europe/Berlin',
       volumePaneSize: 'tiny',
       datafeed: {
-        onReady(x: (arg0: { supported_resolutions: string[]; }) => void) {
+        onReady(x) {
           timer(0)
             .pipe(
               tap(() => {
                 x({
-                  supported_resolutions: ['5', '30', '60', '120', '240', '360', 'D']
+                  supported_resolutions: ['1', '3', '5', '30', '60', '120', '240', '360', 'D']
                 });
               })
             ).subscribe();
         },
+        getBars(symbol, granularity, startTime, endTime, onResult, onError, isFirst) {
 
-        getBars(symbol: any, granularity: string | number, startTime: any, endTime: any,
-                onResult: (arg0: any) => void, onError: any, isFirst: any) {
           that.mockService.getHistoryList({
-            // @ts-ignore
             granularity: that.granularityMap[granularity],
             startTime,
             endTime
-          }).subscribe((data: any) => {
-            // push the history data to callback
+          }, that.init).subscribe((data: any) => {
+            console.log('init history list', that.init);
+            console.log(data);
+            if (data.length && that.init) {
+              onResult(data, {noData: false});
+              that.init = false;
+            } else {
+              onResult(data, {noData: true});
+            }
             onResult(data);
           });
         },
-        resolveSymbol(symbol: any, onResolve: (arg0: {
-          name: string; full_name: string; // display on the chart
-          base_name: string; has_intraday: boolean;
-        }) => void) {
+        resolveSymbol(symbol, onResolve) {
+          console.log('resolve symbol');
           timer(1e3)
             .pipe(
               tap(() => {
@@ -134,21 +141,24 @@ export class TvComponent implements OnInit, OnDestroy {
         },
         getServerTime() {
         },
-        subscribeBars(symbol: any, granularity: string | number, onTick: (arg0: any) => void) {
+        subscribeBars(symbol, granularity, onTick) {
+          console.log('subscribe, arg:', arguments);
+          that.mockService.getHistoryList({
+            granularity: that.granularityMap[granularity],
+          }, true);
           that.ws.onmessage = (e) => {
             try {
-              const data = e;
-              if (data) {
-                // realtime data
+              if (e) {
                 // data's timestamp === recent one ? Update the recent one : A new timestamp data
-                onTick(data);
+                const barData = that.prepareJoinedBarData(that.bars, e);
+                onTick(barData);
               }
             } catch (e) {
+              console.error(e);
             }
           };
 
           // subscribe the realtime data
-          // @ts-ignore
           that.ws.send(`${that.wsMessage}_kline_${that.granularityMap[granularity]}`);
         },
         unsubscribeBars() {
@@ -156,5 +166,32 @@ export class TvComponent implements OnInit, OnDestroy {
         },
       },
     });
+  }
+
+  prepareJoinedBarData(base: Map<string, BarData>, replacement: Map<string, BarData>): BarData {
+    const replacementKey = replacement.keys().next().value;
+    const replacementValue = replacement.values().next().value;
+    base.set(replacementKey, replacementValue);
+
+
+    const translatedBar = this.mapToBarData(base, replacementValue.time);
+    return translatedBar;
+
+  }
+
+  mapToBarData(base: Map<string, BarData>, timestamp: number): BarData {
+    const barDatas = [...base.values()];
+    return {
+      volume: null,
+      time: timestamp,
+      open: this.reduceNumber(barDatas.map(b => b.open)),
+      low: this.reduceNumber(barDatas.map(b => b.low)),
+      close: this.reduceNumber(barDatas.map(b => b.close)),
+      high: this.reduceNumber(barDatas.map(b => b.high))
+    };
+  }
+
+  reduceNumber(number: number[]): number {
+    return number.reduce((a, b) => a + b, 0);
   }
 }

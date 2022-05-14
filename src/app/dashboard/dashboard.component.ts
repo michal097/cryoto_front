@@ -6,6 +6,7 @@ import {RxStompService} from '@stomp/ng2-stompjs';
 import {takeUntil} from 'rxjs/operators';
 import {Subject} from 'rxjs';
 import {chartData} from '../datasource';
+import {BarData} from '../chart/providers/mock.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -16,8 +17,7 @@ export class DashboardComponent implements OnInit {
 
   constructor(private service: CrudService,
               private router: Router,
-              private rxStompService: RxStompService,
-  ) {
+              private rxStompService: RxStompService) {
   }
 
   public stockchartData: Object[];
@@ -36,8 +36,10 @@ export class DashboardComponent implements OnInit {
   low = '0';
   high = '0';
   userDailyStats: UserDailyStats[] = [];
+  cryptoBars: Map<string, BarData> = new Map<string, BarData>();
 
   ngOnInit() {
+
 
     this.loader = false;
     const user: string | null = sessionStorage.getItem('username');
@@ -54,18 +56,28 @@ export class DashboardComponent implements OnInit {
         if (this.traderStart) {
           this.service.getUserDailyStats(data.botInstanceId).subscribe(dailyStats => {
             this.userDailyStats = dailyStats;
+            this.low = dailyStats?.map(userDailyStat => userDailyStat.minGain)?.reduce((a, b) => a + b).toFixed(2);
+            this.high = dailyStats?.map(userDailyStat => userDailyStat.maxGain)?.reduce((a, b) => a + b).toFixed(2);
 
           });
           this.service.getUserCryptos(data.botInstanceId).subscribe(userCryptos => {
             userCryptos.forEach(userCrypto => {
               this.statistics.push({
-                currentCrypto: userCrypto,
-                price: 'Waiting for real time price change',
-                hasPrice: false
+                currentCrypto: userCrypto.cryptoName,
+                price: userCrypto.price,
+                percentage: userCrypto.percentage
               } as CryptoRealPrice);
 
             });
-            this.currentCryptosAsString = userCryptos.join(', ');
+            this.currentCryptosAsString = userCryptos.map(userCrypto => userCrypto.cryptoName).join(', ');
+            userCryptos.forEach(u => this.createCryptoBars(u.cryptoName, u.price, u.quantity));
+            this.service.alreadySellCryptoStats(data.botInstanceId).subscribe(sellStats => {
+              sellStats.forEach(s => {
+                console.log('misterius s', s);
+                this.createSellCryptoBars(s.cryptoName, s.close);
+              });
+            });
+            console.log('this.cryptoBars', this.cryptoBars);
             this.retrieveWebsocketData();
             this.getTradingStats();
           });
@@ -95,13 +107,15 @@ export class DashboardComponent implements OnInit {
 
   startTraderWS(): void {
     this.loader = true;
-    this.service.startTrader(this.actualUser).subscribe(() => this.toggleStartStopTrader());
+    this.service.startTrader(this.actualUser.botInstanceId).subscribe(() => this.toggleStartStopTrader());
+    console.log(this.actualUser.botInstanceId);
     this.retrieveWebsocketData();
   }
 
   stopTraderWS(): void {
     this.loader = true;
-    this.service.stopTrader(this.actualUser).subscribe(() => this.toggleStartStopTrader());
+    console.log('stop');
+    this.service.stopTrader(this.actualUser.botInstanceId).subscribe(() => this.toggleStartStopTrader());
   }
 
   retrieveWebsocketData(): any {
@@ -117,7 +131,6 @@ export class DashboardComponent implements OnInit {
           foundStat.prevPrice = foundStat.price;
           foundStat.price = cryptoRealPrice.price;
           foundStat.percentage = cryptoRealPrice.percentage;
-          foundStat.hasPrice = true;
           const userDailyStats: UserDailyStats = collectStats.userDailyStats;
 
           const foundDailyStat = this.userDailyStats?.find(daily => daily.cryptoName === userDailyStats?.cryptoName);
@@ -125,12 +138,13 @@ export class DashboardComponent implements OnInit {
             this.userDailyStats.push(userDailyStats);
           }
 
-            this.userDailyStats.forEach(daily => {
-              if (daily.cryptoName === userDailyStats.cryptoName) {
-                daily.maxGain = userDailyStats.maxGain;
-                daily.minGain = userDailyStats.minGain;
-              }
-            });
+          this.userDailyStats.forEach(daily => {
+            if (daily.cryptoName === userDailyStats.cryptoName) {
+              daily.maxGain = userDailyStats.maxGain;
+              daily.minGain = userDailyStats.minGain;
+
+            }
+          });
 
           this.low = this.userDailyStats?.map(userDailyStat => userDailyStat.minGain)?.reduce((a, b) => a + b).toFixed(2);
           this.high = this.userDailyStats?.map(userDailyStat => userDailyStat.maxGain)?.reduce((a, b) => a + b).toFixed(2);
@@ -167,14 +181,48 @@ export class DashboardComponent implements OnInit {
     return false;
   }
 
+  createCryptoBars(cryptoName: string, price: string, quantity: number): void {
+    const priceNumber = Number.parseFloat(price);
+    const realPrice = priceNumber * quantity;
+    const barData: BarData = {
+      time: new Date().getTime(),
+      volume: null,
+      open: realPrice,
+      close: realPrice,
+      low: realPrice,
+      high: realPrice
+    };
+
+    this.cryptoBars.set(cryptoName, barData);
+
+  }
+
+  createSellCryptoBars(cryptoName: string, price: number): void {
+    const barData: BarData = {
+      time: new Date().getTime(),
+      volume: null,
+      open: price,
+      close: price,
+      low: price,
+      high: price
+    };
+    this.cryptoBars.set(cryptoName, barData);
+    console.log('sell bar data', barData);
+
+  }
 }
 
+
 export interface CryptoRealPrice {
+  quantity: number;
   currentCrypto: string;
   price: string;
   prevPrice: string;
   percentage: number;
-  hasPrice: boolean;
+  high: number;
+  open: number;
+  close: number;
+  low: number;
 }
 
 export interface CryptoStatisticsDto {
@@ -195,3 +243,4 @@ export interface CollectStatsDto {
   userDailyStats: UserDailyStats;
   userStatistics: CryptoRealPrice;
 }
+
